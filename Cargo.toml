@@ -2,5 +2,16 @@
 name = "simple-flasher"
 version = "0.1.0"
 edition = "2021"
+rust-version = "1.58"
 
 [dependencies]
+iced = {git = "https://github.com/hecrj/iced.git", features = ["svg"]}
+espflash = {git = "https://github.com/jessebraham/espflash.git", branch = "fixes/serialport"}
+usb_enumeration = "0.1.2"
+
+[profile.release]
+strip = "debuginfo"
+lto = true
+
+[patch.crates-io]
+serialport = { git = "https://github.com/jessebraham/serialport-rs" }
