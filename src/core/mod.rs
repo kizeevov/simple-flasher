@@ -21,20 +21,5 @@
 //         Event::Disconnect(d) => println!("Disconnected device: {:?}", d),
 //     }
 // }
-
-// let connect_option = ConnectOpts {
-//     serial: None,//Some(String::from("/dev/tty.usbserial-110")),
-//     speed: None
-// };
-// let mut config = Config::default();
-// //config.connection.serial = Some(String::from("/dev/tty.usbserial-0001"));
-// config.usb_device = vec![UsbDevice{
-//     vid: 6790,
-//     pid: 29987,
-// }];
-//
-// let mut flasher = connect(&connect_option, &config).unwrap();
-// let chip = flasher.chip();
-// flasher.board_info();
-// println!("{:?}", chip);
-//}
+pub mod flasher;
+pub mod usb_watcher;

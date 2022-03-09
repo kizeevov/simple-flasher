@@ -5,6 +5,7 @@ use crate::gui::SimpleFlasherApplication;
 mod core;
 mod gui;
 
-fn main() {
-    SimpleFlasherApplication::start();
+#[tokio::main]
+async fn main() -> iced::Result {
+    SimpleFlasherApplication::start()
 }

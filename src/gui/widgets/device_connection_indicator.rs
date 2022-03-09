@@ -1,14 +1,11 @@
 use crate::gui::component::Component;
 use iced::svg::Handle;
-use iced::{Command, Container, Element, Font, Length, Svg};
-use std::io::ErrorKind::InvalidData;
+use iced::{Command, Container, Element, Length, Svg};
 
-static CONNEECT_ICON_DATA: &'static [u8] =
-    include_bytes!("../../../resources/icons/connected_icon.svg");
-static DISCONNECT_ICON_DATA: &'static [u8] =
+static CONNECT_ICON_DATA: &[u8] = include_bytes!("../../../resources/icons/connected_icon.svg");
+static DISCONNECT_ICON_DATA: &[u8] =
     include_bytes!("../../../resources/icons/disconnected_icon.svg");
-static ERROR_ICON_DATA: &'static [u8] =
-    include_bytes!("../../../resources/icons/connect_error_icon.svg");
+static ERROR_ICON_DATA: &[u8] = include_bytes!("../../../resources/icons/connect_error_icon.svg");
 
 #[derive(Debug, Clone, Copy)]
 pub enum Message {
@@ -29,7 +26,7 @@ impl Component for DeviceConnectionIndicator {
 
     fn new() -> Self {
         Self {
-            connect_svg: Svg::new(Handle::from_memory(CONNEECT_ICON_DATA))
+            connect_svg: Svg::new(Handle::from_memory(CONNECT_ICON_DATA))
                 .width(Length::Fill)
                 .height(Length::Fill),
             disconnect_svg: Svg::new(Handle::from_memory(DISCONNECT_ICON_DATA))
@@ -48,8 +45,6 @@ impl Component for DeviceConnectionIndicator {
     }
 
     fn view(&mut self) -> Element<Self::Message> {
-        println!("view device connection");
-
         let svg = match self.message {
             Message::Connected => &self.connect_svg,
             Message::Disconnected => &self.disconnect_svg,
