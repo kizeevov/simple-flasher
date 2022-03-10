@@ -21,11 +21,24 @@ mod widgets;
 // println!("{:?}", chip);
 //}
 
-use crate::gui::component::Component;
-use crate::gui::views::main_view::{MainView, Message as MainViewMessage};
+use crate::gui::component::{primary_button, Component};
+use crate::gui::device_listener::Event;
+// use crate::gui::views::main_view::{DeviceInfoMessage, MainView, Message as MainViewMessage};
+use crate::gui::widgets::device_connection_indicator::{
+    DeviceConnectionIndicator, Message as ConnectionIndicatorMessage,
+};
+use std::arch::aarch64::vreinterpret_u8_f64;
 
-use iced::{window::Settings as Window, Application, Column, Command, Element, Length, Settings};
+use crate::core::flasher::flash;
+use iced::{
+    button, window::Settings as Window, Application, Column, Command, Element, Length, Settings,
+    Text,
+};
 use iced_native::Subscription;
+use miette::Result;
+use parking_lot::lock_api::RwLockWriteGuard;
+use parking_lot::{Mutex, RawRwLock, RwLock};
+use usb_enumeration::UsbDevice;
 
 // pub const ROBOTO_FONT: Font = Font::External {
 //     name: "Roboto",
@@ -33,12 +46,21 @@ use iced_native::Subscription;
 // };
 
 pub struct SimpleFlasherApplication {
-    main_view: MainView,
+    // main_view: MainView,
+    device: Mutex<Option<usb_enumeration::UsbDevice>>,
+
+    update_button: button::State,
+    device_connection_indicator: DeviceConnectionIndicator,
+    is_device_connected: bool,
 }
 
 #[derive(Debug, Clone)]
 pub enum Message {
-    MainViewAction(MainViewMessage),
+    UpdatePressed,
+    UpdateRunning,
+    UpdateFinished,
+    // DeviceInfo(DeviceInfoMessage),
+    ConnectIconAction(ConnectionIndicatorMessage),
     DeviceChangedAction(device_listener::Event),
 }
 
@@ -50,7 +72,10 @@ impl Application for SimpleFlasherApplication {
     fn new(_flags: Self::Flags) -> (Self, Command<Self::Message>) {
         (
             Self {
-                main_view: MainView::new(),
+                device: Mutex::new(None),
+                update_button: Default::default(),
+                device_connection_indicator: DeviceConnectionIndicator::new(),
+                is_device_connected: false,
             },
             Command::none(),
         )
@@ -62,10 +87,48 @@ impl Application for SimpleFlasherApplication {
 
     fn update(&mut self, message: Self::Message) -> Command<Self::Message> {
         match message {
-            Message::MainViewAction(message) => {
-                self.main_view.update(message).map(Message::MainViewAction)
+            Message::DeviceChangedAction(message) => match message {
+                Event::Connect(device) => {
+                    self.on_device_connection(device);
+                    Command::none()
+                    // Command::perform(async {}, move |_| {
+                    //     Message::MainViewAction(MainViewMessage::DeviceInfo(
+                    //         DeviceInfoMessage::Connected,
+                    //     ))
+                    // })
+                }
+                Event::Disconnect(device) => {
+                    self.on_device_disconnection(device);
+                    Command::none()
+                    // Command::perform(async {}, move |_| {
+                    //     Message::MainViewAction(MainViewMessage::DeviceInfo(
+                    //         DeviceInfoMessage::Disconnected,
+                    //     ))
+                    // })
+                }
+            },
+            Message::UpdatePressed => {
+                //let device = self.device.lock().as_ref();
+                if let Some(device) = self.device.lock().as_ref() {
+                    flash(device).unwrap();
+                }
+
+                //flash(&*(self.device.lock()));
+                Command::none()
             }
-            Message::DeviceChangedAction(_) => Command::none(),
+            Message::UpdateRunning => {
+                todo!()
+            }
+            Message::UpdateFinished => {
+                todo!()
+            }
+            // Message::DeviceInfo(_) => {
+            //     todo!()
+            // }
+            Message::ConnectIconAction(message) => self
+                .device_connection_indicator
+                .update(message)
+                .map(Message::ConnectIconAction),
         }
     }
 
@@ -77,7 +140,18 @@ impl Application for SimpleFlasherApplication {
         Column::new()
             .width(Length::Fill)
             .height(Length::Fill)
-            .push(self.main_view.view().map(Message::MainViewAction))
+            .padding([24, 26])
+            .push(Text::new("Device not connect").height(Length::Units(40)))
+            .push(
+                self.device_connection_indicator
+                    .view()
+                    .map(Message::ConnectIconAction),
+            )
+            .push(match self.is_device_connected {
+                true => primary_button(&mut self.update_button, "Update")
+                    .on_press(Message::UpdatePressed),
+                false => primary_button(&mut self.update_button, "Update"),
+            })
             .into()
     }
 }
@@ -97,5 +171,35 @@ impl SimpleFlasherApplication {
         };
 
         Self::run(settings)
+    }
+
+    fn on_device_connection(&mut self, device: UsbDevice) {
+        *(self.device.lock()) = Some(device);
+
+        self.device_connection_indicator
+            .update(ConnectionIndicatorMessage::Connected);
+        self.is_device_connected = true;
+    }
+
+    fn on_device_disconnection(&mut self, device: UsbDevice) {
+        self.remove_device(device);
+
+        self.device_connection_indicator
+            .update(ConnectionIndicatorMessage::Disconnected);
+        self.is_device_connected = false;
+    }
+
+    fn remove_device(&mut self, device: UsbDevice) {
+        let mut guard = self.device.lock();
+
+        let device_option = guard.as_ref();
+        let device_old = match device_option {
+            None => return,
+            Some(device) => device,
+        };
+
+        if device.id == device_old.id {
+            *guard = None;
+        }
     }
 }

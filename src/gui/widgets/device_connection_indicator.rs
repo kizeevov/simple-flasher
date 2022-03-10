@@ -1,23 +1,20 @@
 use crate::gui::component::Component;
 use iced::svg::Handle;
-use iced::{Command, Container, Element, Length, Svg};
+use iced::{Color, Command, Container, Element, Length, Svg};
 
 static CONNECT_ICON_DATA: &[u8] = include_bytes!("../../../resources/icons/connected_icon.svg");
 static DISCONNECT_ICON_DATA: &[u8] =
     include_bytes!("../../../resources/icons/disconnected_icon.svg");
-static ERROR_ICON_DATA: &[u8] = include_bytes!("../../../resources/icons/connect_error_icon.svg");
 
 #[derive(Debug, Clone, Copy)]
 pub enum Message {
     Connected,
     Disconnected,
-    Error,
 }
 
 pub struct DeviceConnectionIndicator {
     connect_svg: Svg,
     disconnect_svg: Svg,
-    error_svg: Svg,
     pub message: Message,
 }
 
@@ -32,10 +29,7 @@ impl Component for DeviceConnectionIndicator {
             disconnect_svg: Svg::new(Handle::from_memory(DISCONNECT_ICON_DATA))
                 .width(Length::Fill)
                 .height(Length::Fill),
-            error_svg: Svg::new(Handle::from_memory(ERROR_ICON_DATA))
-                .width(Length::Fill)
-                .height(Length::Fill),
-            message: Message::Connected,
+            message: Message::Disconnected,
         }
     }
 
@@ -48,7 +42,6 @@ impl Component for DeviceConnectionIndicator {
         let svg = match self.message {
             Message::Connected => &self.connect_svg,
             Message::Disconnected => &self.disconnect_svg,
-            Message::Error => &self.error_svg,
         };
 
         Container::new(svg.clone())

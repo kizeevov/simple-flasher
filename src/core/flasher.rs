@@ -1,7 +1,9 @@
 use espflash::cli::config::UsbDevice;
-use espflash::cli::{connect, ConnectOpts};
-use espflash::Flasher;
-use miette::Result;
+use espflash::cli::{connect, flash_elf_image, ConnectOpts, FlashOpts};
+use espflash::{Flasher, ImageFormatId};
+use miette::{IntoDiagnostic, Result};
+use std::fs;
+use std::str::FromStr;
 
 pub fn try_get_board_info(device: &usb_enumeration::UsbDevice) -> Result<()> {
     let connect_option = espflash::cli::ConnectOpts {
@@ -29,9 +31,13 @@ pub fn flash(device: &usb_enumeration::UsbDevice) -> Result<()> {
         pid: device.product_id,
     }];
 
-    let flasher = connect(&connect_option, &config);
+    let mut flasher = connect(&connect_option, &config)?;
+    flasher.board_info()?;
 
-    //flash_elf_image()
+    let elf_data = fs::read("target/firmware.elf").into_diagnostic()?;
+    // flasher.load_elf_to_ram(&elf_data)?;
+
+    flash_elf_image(&mut flasher, &elf_data, None, None, None)?;
 
     Ok(())
 }

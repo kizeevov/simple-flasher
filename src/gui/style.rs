@@ -43,13 +43,13 @@ impl button::StyleSheet for PrimaryButtonStyle {
             border_width: 0.,
             border_radius: 5.,
             text_color: color!(0xffffff),
-            background: Some(Background::Color(color!(0x01B757))),
+            background: Some(Background::Color(color!(0x0096E6))),
         }
     }
 
     fn hovered(&self) -> button::Style {
         button::Style {
-            background: Some(Background::Color(color!(0x33CA7A))),
+            background: Some(Background::Color(color!(0x44A4D8))),
             ..self.active()
         }
     }

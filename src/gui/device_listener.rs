@@ -1,10 +1,9 @@
+use crate::core::flasher::try_get_board_info;
 use crate::core::usb_watcher;
-
 use futures::channel::mpsc::Receiver;
 use futures::StreamExt;
-use iced_futures::futures;
-
 use iced_native::subscription::{self, Subscription};
+use usb_enumeration::{Event as UsbEvent, UsbDevice};
 
 pub fn listener() -> Subscription<Event> {
     struct SomeWorker;
@@ -16,20 +15,34 @@ pub fn listener() -> Subscription<Event> {
             match state {
                 State::ListenerStarting => {
                     let subscription = usb_watcher::subscribe();
-                    (Some(Event::StartListener), State::Listener(subscription))
+                    (None, State::Listener(subscription))
                 }
                 State::Listener(mut subscription) => {
                     let event = subscription.select_next_some().await;
-                    //let event = subscription.rx_event.next();
-                    println!("Event {:?}", event);
+                    println!("Device event {:?}", event);
 
-                    // match event {
-                    //     Event::Initial(d) => println!("Initial devices: {:?}", d),
-                    //     Event::Connect(d) => println!("Connected device: {:?}", d),
-                    //     Event::Disconnect(d) => println!("Disconnected device: {:?}", d),
-                    // }
-
-                    (Some(Event::Listener), State::Listener(subscription))
+                    match event {
+                        UsbEvent::Initial(devices) => {
+                            match devices
+                                .iter()
+                                .find(|device| try_get_board_info(&device).is_ok())
+                            {
+                                None => (None, State::Listener(subscription)),
+                                Some(device) => (
+                                    Some(Event::Connect(device.clone())),
+                                    State::Listener(subscription),
+                                ),
+                            }
+                        }
+                        UsbEvent::Connect(device) => match try_get_board_info(&device) {
+                            Ok(_) => (Some(Event::Connect(device)), State::Listener(subscription)),
+                            Err(_) => (None, State::Listener(subscription)),
+                        },
+                        UsbEvent::Disconnect(device) => (
+                            Some(Event::Disconnect(device)),
+                            State::Listener(subscription),
+                        ),
+                    }
                 }
             }
         },
@@ -38,8 +51,8 @@ pub fn listener() -> Subscription<Event> {
 
 #[derive(Debug, Clone)]
 pub enum Event {
-    StartListener,
-    Listener,
+    Connect(UsbDevice),
+    Disconnect(UsbDevice),
 }
 
 enum State {
