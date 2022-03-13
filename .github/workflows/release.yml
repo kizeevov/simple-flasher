@@ -30,7 +30,9 @@ jobs:
           args: --release --target=${{ matrix.target }}
           
       - name: Upload artifact
-        uses: actions/upload-artifact@v3
+        uses: softprops/action-gh-release@v1
         with:
           name: ${{ matrix.target }}
-          path: ${{ github.workspace }}/target/${{ matrix.target }}/release/simple-flasher*
+          files: target/${{ matrix.target }}/release/simple-flasher*
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
