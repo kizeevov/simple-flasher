@@ -1,6 +1,6 @@
 use crate::gui::component::Component;
 use iced::svg::Handle;
-use iced::{Color, Command, Container, Element, Length, Svg};
+use iced::{Command, Container, Element, Length, Svg};
 
 static CONNECT_ICON_DATA: &[u8] = include_bytes!("../../../resources/icons/connected_icon.svg");
 static DISCONNECT_ICON_DATA: &[u8] =

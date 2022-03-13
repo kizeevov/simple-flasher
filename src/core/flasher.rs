@@ -1,9 +1,7 @@
 use espflash::cli::config::UsbDevice;
-use espflash::cli::{connect, flash_elf_image, ConnectOpts, FlashOpts};
-use espflash::{Flasher, ImageFormatId};
+use espflash::cli::{connect, ConnectOpts};
 use miette::{IntoDiagnostic, Result};
 use std::fs;
-use std::str::FromStr;
 
 pub fn try_get_board_info(device: &usb_enumeration::UsbDevice) -> Result<()> {
     let connect_option = espflash::cli::ConnectOpts {
@@ -20,7 +18,22 @@ pub fn try_get_board_info(device: &usb_enumeration::UsbDevice) -> Result<()> {
     Ok(())
 }
 
-pub fn flash(device: &usb_enumeration::UsbDevice) -> Result<()> {
+#[derive(Debug, Clone)]
+pub enum FlashError {
+    ConnectError,
+    BoardInfoError,
+    FileError,
+    FlashError,
+    SpawnError,
+}
+
+pub async fn flash_device(device: usb_enumeration::UsbDevice) -> Result<(), FlashError> {
+    tokio::task::spawn_blocking(move || flash(&device))
+        .await
+        .map_err(|_| FlashError::SpawnError)?
+}
+
+fn flash(device: &usb_enumeration::UsbDevice) -> Result<(), FlashError> {
     let connect_option = ConnectOpts {
         serial: None,
         speed: None,
@@ -31,13 +44,17 @@ pub fn flash(device: &usb_enumeration::UsbDevice) -> Result<()> {
         pid: device.product_id,
     }];
 
-    let mut flasher = connect(&connect_option, &config)?;
-    flasher.board_info()?;
+    let mut flasher = connect(&connect_option, &config).map_err(|_| FlashError::ConnectError)?;
+    flasher
+        .board_info()
+        .map_err(|_| FlashError::BoardInfoError)?;
 
-    let elf_data = fs::read("target/firmware.elf").into_diagnostic()?;
-    // flasher.load_elf_to_ram(&elf_data)?;
-
-    flash_elf_image(&mut flasher, &elf_data, None, None, None)?;
+    let data = fs::read("firmware.bin")
+        .into_diagnostic()
+        .map_err(|_| FlashError::FileError)?;
+    flasher
+        .load_bin_to_flash_addr(0x0, &data)
+        .map_err(|_| FlashError::FlashError)?;
 
     Ok(())
 }

@@ -19,13 +19,11 @@ pub fn listener() -> Subscription<Event> {
                 }
                 State::Listener(mut subscription) => {
                     let event = subscription.select_next_some().await;
-                    println!("Device event {:?}", event);
-
                     match event {
                         UsbEvent::Initial(devices) => {
                             match devices
                                 .iter()
-                                .find(|device| try_get_board_info(&device).is_ok())
+                                .find(|device| try_get_board_info(device).is_ok())
                             {
                                 None => (None, State::Listener(subscription)),
                                 Some(device) => (

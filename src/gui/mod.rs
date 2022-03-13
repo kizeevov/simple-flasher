@@ -1,65 +1,38 @@
 mod component;
 mod device_listener;
+mod localize;
 mod style;
-mod views;
 mod widgets;
 
-// let connect_option = ConnectOpts {
-//     serial: None,//Some(String::from("/dev/tty.usbserial-110")),
-//     speed: None
-// };
-// let mut config = Config::default();
-// //config.connection.serial = Some(String::from("/dev/tty.usbserial-0001"));
-// config.usb_device = vec![UsbDevice{
-//     vid: 6790,
-//     pid: 29987,
-// }];
-//
-// let mut flasher = connect(&connect_option, &config).unwrap();
-// let chip = flasher.chip();
-// flasher.board_info();
-// println!("{:?}", chip);
-//}
-
-use crate::gui::component::{primary_button, Component};
+use crate::gui::component::{message_text, primary_button, Component};
 use crate::gui::device_listener::Event;
-// use crate::gui::views::main_view::{DeviceInfoMessage, MainView, Message as MainViewMessage};
 use crate::gui::widgets::device_connection_indicator::{
     DeviceConnectionIndicator, Message as ConnectionIndicatorMessage,
 };
-use std::arch::aarch64::vreinterpret_u8_f64;
 
-use crate::core::flasher::flash;
+use crate::core::flasher::{flash_device, FlashError};
+
+use crate::fl;
 use iced::{
     button, window::Settings as Window, Application, Column, Command, Element, Length, Settings,
-    Text,
 };
 use iced_native::Subscription;
-use miette::Result;
-use parking_lot::lock_api::RwLockWriteGuard;
-use parking_lot::{Mutex, RawRwLock, RwLock};
+use parking_lot::Mutex;
 use usb_enumeration::UsbDevice;
 
-// pub const ROBOTO_FONT: Font = Font::External {
-//     name: "Roboto",
-//     bytes: include_bytes!("../../../resources/fonts/Roboto-Regular.ttf"),
-// };
-
 pub struct SimpleFlasherApplication {
-    // main_view: MainView,
+    current_message: Message,
     device: Mutex<Option<usb_enumeration::UsbDevice>>,
-
     update_button: button::State,
     device_connection_indicator: DeviceConnectionIndicator,
-    is_device_connected: bool,
+    message: String,
 }
 
 #[derive(Debug, Clone)]
 pub enum Message {
-    UpdatePressed,
+    None,
     UpdateRunning,
-    UpdateFinished,
-    // DeviceInfo(DeviceInfoMessage),
+    UpdateFinished(Result<(), FlashError>),
     ConnectIconAction(ConnectionIndicatorMessage),
     DeviceChangedAction(device_listener::Event),
 }
@@ -72,10 +45,11 @@ impl Application for SimpleFlasherApplication {
     fn new(_flags: Self::Flags) -> (Self, Command<Self::Message>) {
         (
             Self {
+                current_message: Message::None,
                 device: Mutex::new(None),
                 update_button: Default::default(),
                 device_connection_indicator: DeviceConnectionIndicator::new(),
-                is_device_connected: false,
+                message: fl!("device-disabled-please-connect"),
             },
             Command::none(),
         )
@@ -86,45 +60,41 @@ impl Application for SimpleFlasherApplication {
     }
 
     fn update(&mut self, message: Self::Message) -> Command<Self::Message> {
+        self.current_message = message.clone();
         match message {
+            Message::None => unimplemented!(),
             Message::DeviceChangedAction(message) => match message {
                 Event::Connect(device) => {
                     self.on_device_connection(device);
                     Command::none()
-                    // Command::perform(async {}, move |_| {
-                    //     Message::MainViewAction(MainViewMessage::DeviceInfo(
-                    //         DeviceInfoMessage::Connected,
-                    //     ))
-                    // })
                 }
                 Event::Disconnect(device) => {
                     self.on_device_disconnection(device);
                     Command::none()
-                    // Command::perform(async {}, move |_| {
-                    //     Message::MainViewAction(MainViewMessage::DeviceInfo(
-                    //         DeviceInfoMessage::Disconnected,
-                    //     ))
-                    // })
                 }
             },
-            Message::UpdatePressed => {
-                //let device = self.device.lock().as_ref();
-                if let Some(device) = self.device.lock().as_ref() {
-                    flash(device).unwrap();
+            Message::UpdateRunning => match self.device.lock().as_ref() {
+                None => Command::none(),
+                Some(device) => {
+                    self.message = fl!("update-please-wait");
+                    Command::perform(flash_device(device.clone()), Message::UpdateFinished)
                 }
-
-                //flash(&*(self.device.lock()));
+            },
+            Message::UpdateFinished(Ok(_)) => {
+                self.message = fl!("update-success");
                 Command::none()
             }
-            Message::UpdateRunning => {
-                todo!()
+            Message::UpdateFinished(Err(err)) => {
+                self.message = match err {
+                    FlashError::ConnectError => fl!("device-connection-error"),
+                    FlashError::FileError => fl!("file-not-found-or-corrupted"),
+                    FlashError::SpawnError => fl!("failed-start-task"),
+                    FlashError::BoardInfoError => fl!("device-info-error"),
+                    FlashError::FlashError => fl!("device-update-error"),
+                };
+
+                Command::none()
             }
-            Message::UpdateFinished => {
-                todo!()
-            }
-            // Message::DeviceInfo(_) => {
-            //     todo!()
-            // }
             Message::ConnectIconAction(message) => self
                 .device_connection_indicator
                 .update(message)
@@ -137,21 +107,24 @@ impl Application for SimpleFlasherApplication {
     }
 
     fn view(&mut self) -> Element<'_, Self::Message> {
+        let is_update_button_enabled = self.is_update_button_enabled();
+
         Column::new()
             .width(Length::Fill)
             .height(Length::Fill)
             .padding([24, 26])
-            .push(Text::new("Device not connect").height(Length::Units(40)))
             .push(
                 self.device_connection_indicator
                     .view()
                     .map(Message::ConnectIconAction),
             )
-            .push(match self.is_device_connected {
-                true => primary_button(&mut self.update_button, "Update")
-                    .on_press(Message::UpdatePressed),
-                false => primary_button(&mut self.update_button, "Update"),
-            })
+            .push(message_text(&self.message))
+            .push(primary_button(
+                &mut self.update_button,
+                &fl!("update"),
+                Message::UpdateRunning,
+                is_update_button_enabled,
+            ))
             .into()
     }
 }
@@ -165,6 +138,7 @@ impl SimpleFlasherApplication {
                 decorations: true,
                 ..iced::window::Settings::default()
             },
+            default_font: Some(include_bytes!("../../resources/fonts/Roboto-Regular.ttf")),
             default_text_size: 17,
             antialiasing: true,
             ..iced::Settings::default()
@@ -178,7 +152,8 @@ impl SimpleFlasherApplication {
 
         self.device_connection_indicator
             .update(ConnectionIndicatorMessage::Connected);
-        self.is_device_connected = true;
+
+        self.message = fl!("device-connected");
     }
 
     fn on_device_disconnection(&mut self, device: UsbDevice) {
@@ -186,7 +161,8 @@ impl SimpleFlasherApplication {
 
         self.device_connection_indicator
             .update(ConnectionIndicatorMessage::Disconnected);
-        self.is_device_connected = false;
+
+        self.message = fl!("device-disabled-please-connect");
     }
 
     fn remove_device(&mut self, device: UsbDevice) {
@@ -201,5 +177,13 @@ impl SimpleFlasherApplication {
         if device.id == device_old.id {
             *guard = None;
         }
+    }
+
+    fn is_update_button_enabled(&mut self) -> bool {
+        self.device.lock().is_some()
+            && matches!(
+                self.current_message,
+                Message::DeviceChangedAction(_) | Message::UpdateFinished(_)
+            )
     }
 }
