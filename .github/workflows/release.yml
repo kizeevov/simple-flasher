@@ -11,9 +11,11 @@ jobs:
   build:
     name: Build
     runs-on: ubuntu-latest
+    
     strategy:
       matrix:
         target: [i686-pc-windows-gnu, x86_64-pc-windows-gnu]
+        
     steps:
       - uses: actions/checkout@v2
       - uses: actions-rs/toolchain@v1
@@ -26,3 +28,9 @@ jobs:
           use-cross: true
           command: build
           args: --release --target=${{ matrix.target }}
+          
+      - name: Upload artifact
+        uses: actions/upload-artifact@v2
+        with:
+          name: ${{ matrix.target }}
+          path: target/release/simple-flasher*
