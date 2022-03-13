@@ -30,7 +30,7 @@ jobs:
           args: --release --target=${{ matrix.target }}
           
       - name: Upload artifact
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v3
         with:
           name: ${{ matrix.target }}
-          path: target/release/simple-flasher*
+          path: ${{ github.workspace }}/target/release/simple-flasher*
