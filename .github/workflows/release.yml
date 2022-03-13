@@ -28,11 +28,13 @@ jobs:
           use-cross: true
           command: build
           args: --release --target=${{ matrix.target }}
+    
+      - name: Zip artifact for deployment
+        run: zip simple-flasher-${{ matrix.target }}.zip ./target/${{ matrix.target }}/release/simple-flasher* -r
           
       - name: Upload artifact
         uses: softprops/action-gh-release@v1
         with:
-          name: ${{ matrix.target }}
-          files: target/${{ matrix.target }}/release/simple-flasher*
+          files: target/${{ matrix.target }}/release/simple-flasher*.zip
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
