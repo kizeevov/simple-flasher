@@ -21,3 +21,7 @@ device-info-error = Failed to get device information
 device-update-error = An error occurred while updating the device
 
 failed-start-task = Failed to start task
+
+driver-install = Driver install
+
+driver-install-error = Driver installation error. Run the application as administrator and try again

@@ -4,7 +4,9 @@ mod localize;
 mod style;
 mod widgets;
 
-use crate::gui::component::{message_text, primary_button, Component};
+use crate::gui::component::{
+    application_icon, message_text, primary_button, secondary_button, Component,
+};
 use crate::gui::device_listener::Event;
 use crate::gui::widgets::device_connection_indicator::{
     DeviceConnectionIndicator, Message as ConnectionIndicatorMessage,
@@ -24,6 +26,8 @@ pub struct SimpleFlasherApplication {
     current_message: Message,
     device: Mutex<Option<usb_enumeration::UsbDevice>>,
     update_button: button::State,
+    #[cfg(target_os = "windows")]
+    driver_install_button: button::State,
     device_connection_indicator: DeviceConnectionIndicator,
     message: String,
 }
@@ -35,6 +39,10 @@ pub enum Message {
     UpdateFinished(Result<(), FlashError>),
     ConnectIconAction(ConnectionIndicatorMessage),
     DeviceChangedAction(device_listener::Event),
+    #[cfg(target_os = "windows")]
+    DriverInstallingStart,
+    #[cfg(target_os = "windows")]
+    DriverInstalling(Result<(), ()>),
 }
 
 impl Application for SimpleFlasherApplication {
@@ -48,6 +56,8 @@ impl Application for SimpleFlasherApplication {
                 current_message: Message::None,
                 device: Mutex::new(None),
                 update_button: Default::default(),
+                #[cfg(target_os = "windows")]
+                driver_install_button: Default::default(),
                 device_connection_indicator: DeviceConnectionIndicator::new(),
                 message: fl!("device-disabled-please-connect"),
             },
@@ -99,6 +109,24 @@ impl Application for SimpleFlasherApplication {
                 .device_connection_indicator
                 .update(message)
                 .map(Message::ConnectIconAction),
+            #[cfg(target_os = "windows")]
+            Message::DriverInstallingStart => Command::perform(
+                async {
+                    std::process::Command::new("drivers/CH340/SETUP.EXE")
+                        .current_dir("drivers/CH340/")
+                        .spawn()
+                        .map_err(|_| ())?;
+                    Ok(())
+                },
+                Message::DriverInstalling,
+            ),
+            #[cfg(target_os = "windows")]
+            Message::DriverInstalling(Ok(_)) => Command::none(),
+            #[cfg(target_os = "windows")]
+            Message::DriverInstalling(Err(_)) => {
+                self.message = fl!("driver-install-error");
+                Command::none()
+            }
         }
     }
 
@@ -110,6 +138,7 @@ impl Application for SimpleFlasherApplication {
         let is_update_button_enabled = self.is_update_button_enabled();
 
         Column::new()
+            .spacing(6)
             .width(Length::Fill)
             .height(Length::Fill)
             .padding([24, 26])
@@ -119,6 +148,12 @@ impl Application for SimpleFlasherApplication {
                     .map(Message::ConnectIconAction),
             )
             .push(message_text(&self.message))
+            .push(secondary_button(
+                &mut self.driver_install_button,
+                &fl!("driver-install"),
+                Message::DriverInstallingStart,
+                true,
+            ))
             .push(primary_button(
                 &mut self.update_button,
                 &fl!("update"),
@@ -136,6 +171,7 @@ impl SimpleFlasherApplication {
                 size: (400, 560),
                 resizable: false,
                 decorations: true,
+                icon: Some(application_icon()),
                 ..iced::window::Settings::default()
             },
             default_font: Some(include_bytes!("../../resources/fonts/Roboto-Regular.ttf")),

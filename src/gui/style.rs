@@ -54,3 +54,24 @@ impl button::StyleSheet for PrimaryButtonStyle {
         }
     }
 }
+
+pub struct SecondaryButtonStyle;
+impl button::StyleSheet for SecondaryButtonStyle {
+    fn active(&self) -> button::Style {
+        button::Style {
+            shadow_offset: Default::default(),
+            border_color: color!(0x6B6B6B),
+            border_width: 1.,
+            border_radius: 5.,
+            text_color: color!(0x6B6B6B),
+            background: Some(Background::Color(Color::WHITE)),
+        }
+    }
+
+    fn hovered(&self) -> button::Style {
+        button::Style {
+            background: Some(Background::Color(color!(0xF3F3F3))),
+            ..self.active()
+        }
+    }
+}
