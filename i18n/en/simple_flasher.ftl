@@ -24,4 +24,6 @@ failed-start-task = Failed to start task
 
 driver-install = Driver install
 
-driver-install-error = Driver installation error. Run the application as administrator and try again
+driver-install-success = Driver successfully installed
+
+driver-install-error = Driver installation error. The driver is already installed. Or you need to run the app as administrator and try again

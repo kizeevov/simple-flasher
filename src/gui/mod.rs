@@ -15,6 +15,7 @@ use crate::gui::widgets::device_connection_indicator::{
 
 use crate::core::flasher::{flash_device, FlashError};
 
+use crate::core::drivers::install_drivers;
 use crate::fl;
 use iced::{
     button, window::Settings as Window, Application, Column, Command, Element, Length, Settings,
@@ -111,18 +112,14 @@ impl Application for SimpleFlasherApplication {
                 .update(message)
                 .map(Message::ConnectIconAction),
             #[cfg(target_os = "windows")]
-            Message::DriverInstallingStart => Command::perform(
-                async {
-                    std::process::Command::new("drivers/CH340/SETUP.EXE")
-                        .current_dir("drivers/CH340/")
-                        .spawn()
-                        .map_err(|_| ())?;
-                    Ok(())
-                },
-                Message::DriverInstalling,
-            ),
+            Message::DriverInstallingStart => {
+                Command::perform(async { install_drivers() }, Message::DriverInstalling)
+            }
             #[cfg(target_os = "windows")]
-            Message::DriverInstalling(Ok(_)) => Command::none(),
+            Message::DriverInstalling(Ok(_)) => {
+                self.message = fl!("driver-install-success");
+                Command::none()
+            }
             #[cfg(target_os = "windows")]
             Message::DriverInstalling(Err(_)) => {
                 self.message = fl!("driver-install-error");
@@ -230,7 +227,10 @@ impl SimpleFlasherApplication {
         self.device.lock().is_some()
             && matches!(
                 self.current_message,
-                Message::DeviceChangedAction(_) | Message::UpdateFinished(_)
+                Message::DeviceChangedAction(_)
+                    | Message::UpdateFinished(_)
+                    | Message::DriverInstalling(_)
+                    | Message::ConnectIconAction(_)
             )
     }
 }
