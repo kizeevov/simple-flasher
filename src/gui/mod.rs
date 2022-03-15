@@ -4,9 +4,10 @@ mod localize;
 mod style;
 mod widgets;
 
-use crate::gui::component::{
-    application_icon, message_text, primary_button, secondary_button, Component,
-};
+#[allow(unused)]
+use crate::gui::component::secondary_button;
+
+use crate::gui::component::{application_icon, message_text, primary_button, Component};
 use crate::gui::device_listener::Event;
 use crate::gui::widgets::device_connection_indicator::{
     DeviceConnectionIndicator, Message as ConnectionIndicatorMessage,
@@ -148,12 +149,22 @@ impl Application for SimpleFlasherApplication {
                     .map(Message::ConnectIconAction),
             )
             .push(message_text(&self.message))
-            .push(secondary_button(
-                &mut self.driver_install_button,
-                &fl!("driver-install"),
-                Message::DriverInstallingStart,
-                true,
-            ))
+            .push({
+                #[cfg(target_os = "windows")]
+                {
+                    secondary_button(
+                        &mut self.driver_install_button,
+                        &fl!("driver-install"),
+                        Message::DriverInstallingStart,
+                        true,
+                    )
+                }
+
+                #[cfg(not(any(windows)))]
+                {
+                    Column::new()
+                }
+            })
             .push(primary_button(
                 &mut self.update_button,
                 &fl!("update"),

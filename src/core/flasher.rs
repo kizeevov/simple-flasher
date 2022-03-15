@@ -1,6 +1,6 @@
 use espflash::cli::config::UsbDevice;
 use espflash::cli::{connect, ConnectOpts};
-use miette::{IntoDiagnostic, Result};
+use miette::Result;
 use std::fs;
 
 pub fn try_get_board_info(device: &usb_enumeration::UsbDevice) -> Result<()> {
@@ -49,12 +49,25 @@ fn flash(device: &usb_enumeration::UsbDevice) -> Result<(), FlashError> {
         .board_info()
         .map_err(|_| FlashError::BoardInfoError)?;
 
-    let data = fs::read("firmware.bin")
-        .into_diagnostic()
-        .map_err(|_| FlashError::FileError)?;
+    let data = try_read_firmware_file()?;
     flasher
         .load_bin_to_flash_addr(0x0, &data)
         .map_err(|_| FlashError::FlashError)?;
 
     Ok(())
+}
+
+fn try_read_firmware_file() -> Result<Vec<u8>, FlashError> {
+    let read_dir = fs::read_dir("./").map_err(|_| FlashError::FileError)?;
+    let firmware_file_path = read_dir
+        .into_iter()
+        .filter(|r| r.is_ok())
+        .map(|r| r.unwrap().path())
+        .find(|r| match r.extension() {
+            None => false,
+            Some(extension) => extension.eq("bin"),
+        })
+        .ok_or(FlashError::FileError)?;
+
+    fs::read(firmware_file_path).map_err(|_| FlashError::FlashError)
 }

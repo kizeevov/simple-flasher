@@ -37,6 +37,7 @@ pub fn primary_button<'a, Message: Clone>(
     }
 }
 
+#[allow(unused)]
 pub fn secondary_button<'a, Message: Clone>(
     state: &'a mut button::State,
     label: &str,
