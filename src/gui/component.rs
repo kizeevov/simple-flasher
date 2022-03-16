@@ -65,7 +65,7 @@ pub fn secondary_button<'a, Message: Clone>(
 pub fn message_text<Message>(label: &str) -> Container<Message> {
     Container::new(
         Text::new(label)
-            .height(Length::Units(60))
+            .height(Length::Units(80))
             .width(Length::Fill)
             .horizontal_alignment(Horizontal::Center)
             .vertical_alignment(Vertical::Center)
