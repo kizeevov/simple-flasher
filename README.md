@@ -9,7 +9,7 @@ You have an ESP device for which you want to release new firmware versions, and 
 # Features
 
 * [x] Automatic device discovery
-* [x] Installing serial driver for Windows
+* [ ] Installing serial driver for Windows
 * [ ] Embedded firmware file
 * [ ] Localization support
 
