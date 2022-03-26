@@ -1,7 +1,7 @@
 use crate::gui::style::{PrimaryButtonStyle, SecondaryButtonStyle};
 use iced::alignment::{Horizontal, Vertical};
 use iced::window::Icon;
-use iced::{button, Button, Command, Container, Element, Length, Text};
+use iced::{button, Button, Column, Command, Container, Element, Length, Text};
 
 pub trait Component {
     type Message;
@@ -11,6 +11,27 @@ pub trait Component {
     fn update(&mut self, message: Self::Message) -> Command<Self::Message>;
 
     fn view(&mut self) -> Element<Self::Message>;
+}
+
+pub trait PushWithVisible<'a, Message> {
+    fn push_with_visible<E, F>(self, func: F, is_visible: bool) -> Self
+    where
+        E: Into<Element<'a, Message>>,
+        F: FnOnce() -> E;
+}
+
+impl<'a, Message> PushWithVisible<'a, Message> for Column<'a, Message> {
+    fn push_with_visible<E, F>(self, element_func: F, is_visible: bool) -> Self
+    where
+        E: Into<Element<'a, Message>>,
+        F: FnOnce() -> E,
+    {
+        if is_visible {
+            self.push(element_func().into())
+        } else {
+            self
+        }
+    }
 }
 
 pub fn primary_button<'a, Message: Clone>(
@@ -37,7 +58,6 @@ pub fn primary_button<'a, Message: Clone>(
     }
 }
 
-#[allow(unused)]
 pub fn secondary_button<'a, Message: Clone>(
     state: &'a mut button::State,
     label: &str,
