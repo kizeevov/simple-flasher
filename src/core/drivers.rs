@@ -13,8 +13,6 @@ pub fn install_drivers() -> Result<(), ()> {
         .map_err(|_| ())?;
 
     let stdout = String::from_utf8_lossy(&output.stdout);
-
-    println!("{:?}", stdout);
     if stdout.to_lowercase().contains("oem") {
         return Ok(());
     }
