@@ -1,6 +1,9 @@
 # Simple Flasher
 
 A cross-platform application that allows you to install firmware on your esp8266 with one button.
+![image](https://user-images.githubusercontent.com/29508723/160273156-dee5d6fe-754e-4971-8712-b650b932496e.png)
+![image](https://user-images.githubusercontent.com/29508723/160273124-ccea5f54-f4ee-4416-8608-b48c9e8e936f.png)
+
 
 # What is it for
 
